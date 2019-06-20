@@ -1,12 +1,13 @@
 import React from 'react'
 import { Text, View, StyleSheet, FlatList, Dimensions, TouchableOpacity, SafeAreaView, Clipboard, TextInput } from 'react-native'
-import { getReplyList, getImage, getDetail } from '../modules/apis'
+import { getReplyList, getDetail } from '../modules/api/ano/thread'
+import { addFeed, isSubscribed, delFeed } from '../modules/api/ano/feed'
+import { getImage } from '../modules/api/image'
 import { ListProcessView } from '../component/list-process-view'
 import Icon from 'react-native-vector-icons/SimpleLineIcons'
 import { TopModal } from '../component/top-modal'
 import  { Toast } from '../component/toast'
 import { DetailListItem } from '../component/list-detail-item'
-import { history } from '../modules/history'
 import { ActionSheet } from '../component/action-sheet'
 import { configNetwork, configDynamic, UISetting } from '../modules/config'
 import { Header } from 'react-navigation'
@@ -37,7 +38,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderRadius: 11,
-        marginRight: 13, 
+        marginRight: 13,
         marginTop: 2
     },
     headerRightPageText: {
@@ -66,7 +67,8 @@ class DetailsScreen extends React.Component {
             replyList: Array(),
             page: 1,
             loadEnd: false,
-            footerMessage: ''
+            footerMessage: '',
+            isFeed: false
         };
     }
     poID = '';
@@ -106,14 +108,12 @@ class DetailsScreen extends React.Component {
             )
         };
     };
-    componentWillMount() {
-        
-    }
+
     componentDidMount() {
         this.quoteIds = '';
         this.threadDetail = this.props.navigation.getParam('threadDetail', null);
         this.poID = this.threadDetail.userid;
-        this.props.navigation.setParams({ 
+        this.props.navigation.setParams({
             openLDrawer: this.props.navigation.openDrawer,
             menuFunctions: this._menuFunctions
         });
@@ -123,6 +123,11 @@ class DetailsScreen extends React.Component {
             replyList: [this.threadDetail]
         }, ()=>{
             this._pullDownRefresh(1, true);
+        });
+        isSubscribed(this.threadDetail.id).then((res)=>{
+            this.setState({
+                isFeed: res
+            });
         });
     }
     componentWillUnmount() {
@@ -168,11 +173,11 @@ class DetailsScreen extends React.Component {
             });
         }
         return (
-            <DetailListItem 
-            itemDetail={item} 
-            navigation={this.props.navigation} 
-            Toast={this.toast} 
-            po={this.poID} 
+            <DetailListItem
+            itemDetail={item}
+            navigation={this.props.navigation}
+            Toast={this.toast}
+            po={this.poID}
             longPressItem={this._actionItem}/>
         )
     }
@@ -184,7 +189,7 @@ class DetailsScreen extends React.Component {
         [
             '举报',
             '跳转',
-            '收藏',
+            this.state.isFeed?'取消收藏':'收藏',
         ],
         (index) => {
             this.ActionSheet.closeActionSheet(() => {
@@ -202,6 +207,32 @@ class DetailsScreen extends React.Component {
                         this._gotoPage();
                         break;
                     case 2:
+                        if(this.state.isFeed) {
+                            delFeed(this.threadDetail.id).then((res) => {
+                                if(res.status === 'ok') {
+                                    this.toast.show('取消成功(ノﾟ∀ﾟ)ノ');
+                                    this.setState({
+                                        isFeed: false
+                                    });
+                                }
+                                else {
+                                    this.toast.show('取消失败( ﾟ∀。)');
+                                }
+                            });
+                        }
+                        else {
+                            addFeed(this.threadDetail.id).then((res) => {
+                                if(res.status === 'ok') {
+                                    this.toast.show('订阅成功(ノﾟ∀ﾟ)ノ');
+                                    this.setState({
+                                        isFeed: true
+                                    });
+                                }
+                                else {
+                                    this.toast.show('订阅失败( ﾟ∀。)');
+                                }
+                            });
+                        }
                         break;
                 }
             });
@@ -214,10 +245,10 @@ class DetailsScreen extends React.Component {
     _gotoPage = () => {
         this.inputPage = this.state.page.toString();
         let replyCount = this.state.replyList[0].replyCount ? this.state.replyList[0].replyCount: 0;
-        this.TopModal.showMessage(`输入页码 1~${Math.ceil(replyCount / 19)}`, 
+        this.TopModal.showMessage(`输入页码 1~${Math.ceil(replyCount / 19)}`,
         (<View style={{height: 30, marginTop:20, marginBottom: 20}}>
-            <TextInput 
-                style={{flex:1, fontSize: 24, width: 280, textAlign:'center'}}
+            <TextInput
+                style={{flex:1, fontSize: 24, width: 280, textAlign:'center', color: UISetting.colors.lightFontColor}}
                 autoFocus={true}
                 textAlignVertical='center'
                 returnKeyType={'done'}
@@ -232,7 +263,7 @@ class DetailsScreen extends React.Component {
      */
     _actionItem = (target, id, closeMark) => {
         let { pageX, pageY } = target.nativeEvent;
-        this.ActionSheet.showActionSheet(pageX, pageY, `操作>>No.${id}`, 
+        this.ActionSheet.showActionSheet(pageX, pageY, `操作>>No.${id}`,
         ['回复', '添加到引用缓存', '复制串号', '复制内容', '举报', '屏蔽饼干(未实现)', '屏蔽串号(未实现)'], (index)=>{
             this.ActionSheet.closeActionSheet();
             closeMark();
@@ -316,7 +347,6 @@ class DetailsScreen extends React.Component {
                         if( res.res.replys[0].id == 9999999 ) {
                             res.res.replys.splice(0, 1);
                         }
-                        history.addNewHistory('cache', {replyTo: res.res.id ,datas: res.res.replys});
                         //计算上次拉到哪里
                         let cpCount = (this.localReplyCount > 0) ? (res.res.replys.length - this.localReplyCount) : res.res.replys.length;
                         //本页是否填满
@@ -379,9 +409,13 @@ class DetailsScreen extends React.Component {
                 return;
             }
             if (res.status === 'ok') {
-                this.props.navigation.setParams({
-                    threadDetail: res.res
-                });
+                if(startPage === 1) {
+                    this.props.navigation.setParams({
+                        threadDetail: res.res
+                    });
+                    this.threadDetail = res.res;
+                    this.poID = this.threadDetail.userid;
+                }
                 if(!isReply) {
                     this.localReplyCount = res.res.replys.length >= 19? 0: res.res.replys.length;
                     if(res.res.replys.length > 0 && res.res.replys[0].id==9999999 && this.localReplyCount > 0) {
@@ -390,7 +424,7 @@ class DetailsScreen extends React.Component {
                 }
                 this.loadingImages = [];
                 let tempList = Array();
-                
+
                 tempList.push({
                     id: res.res.id,
                     img: res.res.img,
@@ -407,8 +441,6 @@ class DetailsScreen extends React.Component {
                 });
                 if(!isReply) {
                     tempList = tempList.concat(res.res.replys);
-                    history.addNewHistory('cache', {replyTo: 0, datas: [tempList[0]]});
-                    history.addNewHistory('cache', {replyTo: res.res.id, datas: res.res.replys});
                 }
 
                 if(isReply) {
@@ -428,8 +460,8 @@ class DetailsScreen extends React.Component {
                         headerLoading: false,
                         footerLoading: 0,
                         loadEnd: res.res.replys.length >= 19 ? false : true,
-                        footerMessage: res.res.replys.length >= 19 ? 
-                        `上拉继续加载 ${res.res.replys.length}/${res.res.replyCount}`    
+                        footerMessage: res.res.replys.length >= 19 ?
+                        `上拉继续加载 ${res.res.replys.length}/${res.res.replyCount}`
                         :
                         `加载完成,点击再次加载 ${res.res.replys.length}/${res.res.replyCount}`
                     });
@@ -448,7 +480,7 @@ class DetailsScreen extends React.Component {
             }
         });
     }
-    
+
     render() {
         return (
             <SafeAreaView style={{flex:1, backgroundColor: UISetting.colors.defaultBackgroundColor}}>

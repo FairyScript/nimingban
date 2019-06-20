@@ -21,7 +21,8 @@ const styles = StyleSheet.create({
     },
     themeColorValueView: {
         display: 'flex',
-        flexDirection: 'row'
+        flexDirection: 'row',
+        alignItems: 'center'
     },
     themeColorRect: {
         height: 18,
@@ -101,7 +102,15 @@ const styles = StyleSheet.create({
     },
     settingItemValueText: {
         fontSize: 16,
-        lineHeight: 20
+        lineHeight: 20,
+        flex: 1,
+        textAlign: 'right'
+    },
+    settingItemValueView: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        flex: 1
     }
 });
 
@@ -138,7 +147,7 @@ class SettingScreen extends React.Component {
             )
         }
     }
-
+    tnnaiiSound = null;
     componentDidMount() {
         this.props.navigation.setParams({
             openLDrawer: this.props.navigation.openDrawer,
@@ -146,15 +155,33 @@ class SettingScreen extends React.Component {
         this.setState({
             fontSizeString: `${UISetting.fontScale}x`
         });
-        SoundPlayer.setCategory('Playback');
-        this.tnnaiiSound = new SoundPlayer('tnnaii-h-island-c.mp3', SoundPlayer.MAIN_BUNDLE, (err) => {
-            if (err) {
-                console.log('load sound error:', err);
-            }
-        });
     }
     componentWillUnmount() {
-        this.tnnaiiSound.release();
+        this._soundRelease();
+    }
+    _soundInit() {
+        if(this.tnnaiiSound === null) {
+            SoundPlayer.setCategory('Playback');
+            this.tnnaiiSound = new SoundPlayer('tnnaii-h-island-c.mp3', SoundPlayer.MAIN_BUNDLE, (err) => {
+                if (err) {
+                    console.log('load sound error:', err);
+                }
+            });
+        }
+    }
+    _soundPlay() {
+        this._soundInit();
+        try {
+            this.tnnaiiSound.setVolume(1.0);
+            this.tnnaiiSound.play();
+        } catch {
+
+        }
+    }
+    _soundRelease() {
+        if(this.tnnaiiSound !== null) {
+            this.tnnaiiSound.release();
+        }
     }
     _onFontSizeChange = (value) => {
         UISetting.fontScale = parseFloat(value.toFixed(1));
@@ -170,8 +197,7 @@ class SettingScreen extends React.Component {
         if (this.clickVersionCounter == 0) {
             setTimeout(() => {
                 if (this.clickVersionCounter >= 4) {
-                    this.tnnaiiSound.setVolume(1.0);
-                    this.tnnaiiSound.play();
+                    this._soundPlay();
                     this.clickVersionCounter = 0;
                 }
                 else {
@@ -198,8 +224,9 @@ class SettingScreen extends React.Component {
                                     字体大小
                                 </Text>
                             </View>
-                            <View>
+                            <View style={styles.settingItemValueView}>
                                 <Text style={[styles.settingItemValueText, { color: UISetting.colors.lightFontColor }]}>{this.state.fontSizeString}</Text>
+                                <Icon name={'arrow-right'} size={12} style={{marginLeft: 4}} color={UISetting.colors.lightFontColor} />
                             </View>
                         </TouchableOpacity>
                         <View style={this.state.showFontSize ? styles.fontSizeView : styles.displayNone}>
@@ -214,6 +241,26 @@ class SettingScreen extends React.Component {
                         </View>
                         <View style={[styles.itemSplitLine, { backgroundColor: UISetting.colors.defaultBackgroundColor }]}></View>
 
+                        <TouchableOpacity style={styles.settingItem} onPress={() => this.setState({ showTimeFormat: !this.state.showTimeFormat })}>
+                            <View>
+                                <Text style={[styles.settingItemText, { color: UISetting.colors.threadFontColor }]}>
+                                    黑暗模式
+                                </Text>
+                            </View>
+                            <View>
+                                <Switch
+                                    value={UISetting.colorMode==1?true:false}
+                                    onValueChange={(newValue)=>{
+                                        UISetting.colorMode = newValue?1:0;
+                                        UISetting.colors = UISetting.colorMode === 1 ? UISetting.darkColors : UISetting.userColors;
+                                        this.forceUpdate();
+                                        this.props.navigation.setParams({ a: Math.random() });
+                                        saveUISetting();
+                                    }}/>
+                            </View>
+                        </TouchableOpacity>
+                        <View style={[styles.itemSplitLine, { backgroundColor: UISetting.colors.defaultBackgroundColor }]}></View>
+
                         <TouchableOpacity style={styles.settingItem} onPress={() => this.setState({ showThemeColor: !this.state.showThemeColor })}>
                             <View>
                                 <Text style={[styles.settingItemText, { color: UISetting.colors.threadFontColor }]}>
@@ -221,14 +268,15 @@ class SettingScreen extends React.Component {
                                 </Text>
                             </View>
                             <View style={styles.themeColorValueView}>
-                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.globalColor }]}></View>
-                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.lightColor }]}></View>
-                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.fontColor }]}></View>
-                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.lightFontColor }]}></View>
-                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.threadFontColor }]}></View>
-                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.threadBackgroundColor }]}></View>
-                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.defaultBackgroundColor }]}></View>
-                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.linkColor }]}></View>
+                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.globalColor }]}></View>
+                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.lightColor }]}></View>
+                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.fontColor }]}></View>
+                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.lightFontColor }]}></View>
+                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.threadFontColor }]}></View>
+                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.threadBackgroundColor }]}></View>
+                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.defaultBackgroundColor }]}></View>
+                                <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.linkColor }]}></View>
+                                <Icon name={'arrow-right'} size={12} style={{marginLeft: 4}} color={UISetting.colors.lightFontColor} />
                             </View>
                         </TouchableOpacity>
                         <View style={this.state.showThemeColor ? styles.themeColorView : styles.displayNone}>
@@ -237,13 +285,13 @@ class SettingScreen extends React.Component {
                                     <Text style={[styles.settingItemText, { color: UISetting.colors.threadFontColor }]}>
                                         UI主色：
                                     </Text>
-                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.globalColor }]}></View>
+                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.globalColor }]}></View>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.themeColorViewColumn} onPress={() => this.setState({ themeColorKeyNow: 'lightColor', showThemeColorPicker: true })}>
                                     <Text style={[styles.settingItemText, { color: UISetting.colors.threadFontColor }]}>
                                         淡化色：
                                     </Text>
-                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.lightColor }]}></View>
+                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.lightColor }]}></View>
                                 </TouchableOpacity>
                             </View>
 
@@ -252,13 +300,13 @@ class SettingScreen extends React.Component {
                                     <Text style={[styles.settingItemText, { color: UISetting.colors.threadFontColor }]}>
                                         UI字体色：
                                     </Text>
-                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.fontColor }]}></View>
+                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.fontColor }]}></View>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.themeColorViewColumn} onPress={() => this.setState({ themeColorKeyNow: 'lightFontColor', showThemeColorPicker: true })}>
                                     <Text style={[styles.settingItemText, { color: UISetting.colors.threadFontColor }]}>
                                         淡化字体色：
                                     </Text>
-                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.lightFontColor }]}></View>
+                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.lightFontColor }]}></View>
                                 </TouchableOpacity>
                             </View>
 
@@ -267,28 +315,28 @@ class SettingScreen extends React.Component {
                                     <Text style={[styles.settingItemText, { color: UISetting.colors.threadFontColor }]}>
                                         串字体色：
                                     </Text>
-                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.threadFontColor }]}></View>
+                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.threadFontColor }]}></View>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.themeColorViewColumn} onPress={() => this.setState({ themeColorKeyNow: 'threadBackgroundColor', showThemeColorPicker: true })}>
                                     <Text style={[styles.settingItemText, { color: UISetting.colors.threadFontColor }]}>
                                         串背景色：
                                     </Text>
-                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.threadBackgroundColor }]}></View>
+                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.threadBackgroundColor }]}></View>
                                 </TouchableOpacity>
                             </View>
 
                             <View style={styles.themeColorViewRow}>
                                 <TouchableOpacity style={styles.themeColorViewColumn} onPress={() => this.setState({ themeColorKeyNow: 'defaultBackgroundColor', showThemeColorPicker: true })}>
                                     <Text style={[styles.settingItemText, { color: UISetting.colors.threadFontColor }]}>
-                                        其他景色：
+                                        其他背景色：
                                     </Text>
-                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.defaultBackgroundColor }]}></View>
+                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.defaultBackgroundColor }]}></View>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.themeColorViewColumn} onPress={() => this.setState({ themeColorKeyNow: 'linkColor', showThemeColorPicker: true })}>
                                     <Text style={[styles.settingItemText, { color: UISetting.colors.threadFontColor }]}>
                                         强调色：
                                     </Text>
-                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.colors.linkColor }]}></View>
+                                    <View style={[styles.themeColorRect, { backgroundColor: UISetting.userColors.linkColor }]}></View>
                                 </TouchableOpacity>
                             </View>
                             <View style={this.state.showThemeColorPicker ? {} : styles.displayNone}>
@@ -298,12 +346,16 @@ class SettingScreen extends React.Component {
                                     width={Dimensions.get('window').width}
                                     onColorChanged={(color) => {
                                         UISetting.colors[this.state.themeColorKeyNow] = color;
+                                        UISetting.userColors[this.state.themeColorKeyNow] = color;
                                         this.forceUpdate();
                                     }} />
                                 <View style={styles.themeColorToolsView}>
                                     <UIButton text={'更新'}
-                                        style={{ backgroundColor: UISetting.colors.globalColor }}
-                                        textStyle={{ color: UISetting.colors.fontColor, fontSize: 18 }}
+                                        backgroundColor={UISetting.colors.globalColor}
+                                        textColor={UISetting.colors.fontColor}
+                                        fontSize={18}
+                                        width="45%"
+                                        show={true}
                                         showLoading={this.props.checkingSession}
                                         onPress={() => {
                                             this.props.navigation.setParams({ a: Math.random() });
@@ -313,11 +365,15 @@ class SettingScreen extends React.Component {
                                             saveUISetting();
                                         }} />
                                     <UIButton text={'取消(还原)'}
-                                        style={{ backgroundColor: UISetting.colors.defaultBackgroundColor }}
-                                        textStyle={{ color: UISetting.colors.globalColor, fontSize: 18 }}
+                                        backgroundColor={UISetting.colors.defaultBackgroundColor}
+                                        textColor={UISetting.colors.globalColor}
+                                        fontSize={18}
+                                        width="45%"
+                                        show={true}
                                         showLoading={this.props.checkingSession}
                                         onPress={() => {
                                             UISetting.colors[this.state.themeColorKeyNow] = UISetting.defaultColors[this.state.themeColorKeyNow];
+                                            UISetting.userColors[this.state.themeColorKeyNow] = UISetting.defaultColors[this.state.themeColorKeyNow];
                                             this.props.navigation.setParams({ a: Math.random() });
                                             this.setState({
                                                 showThemeColorPicker: false
@@ -335,8 +391,9 @@ class SettingScreen extends React.Component {
                                     时间格式
                                 </Text>
                             </View>
-                            <View>
+                            <View style={styles.settingItemValueView}>
                                 <Text style={[styles.settingItemValueText, { color: UISetting.colors.lightFontColor }]}>{timeFormatDisplayName[UISetting.timeFormat]}</Text>
+                                <Icon name={'arrow-right'} size={12} style={{marginLeft: 4}} color={UISetting.colors.lightFontColor} />
                             </View>
                         </TouchableOpacity>
                         <View style={this.state.showTimeFormat ? styles.fontSizeView : styles.displayNone}>
@@ -349,7 +406,10 @@ class SettingScreen extends React.Component {
                                     UISetting.timeFormat = 0;
                                     saveUISetting();
                                 }}>
-                                <Text style={[styles.settingItemValueText, { color: UISetting.timeFormat == 0 ? UISetting.colors.linkColor : UISetting.colors.lightFontColor }]}>
+                                <Text style={[
+                                    styles.settingItemValueText, {
+                                        color: UISetting.timeFormat == 0 ? UISetting.colors.linkColor : UISetting.colors.lightFontColor,
+                                        textAlign: 'center'}]}>
                                     {timeFormatDisplayName[0]}
                                 </Text>
                             </TouchableOpacity>
@@ -362,7 +422,10 @@ class SettingScreen extends React.Component {
                                     UISetting.timeFormat = 1;
                                     saveUISetting();
                                 }}>
-                                <Text style={[styles.settingItemValueText, { color: UISetting.timeFormat == 1 ? UISetting.colors.linkColor : UISetting.colors.lightFontColor }]}>
+                                <Text style={[
+                                    styles.settingItemValueText, {
+                                        color: UISetting.timeFormat == 1 ? UISetting.colors.linkColor : UISetting.colors.lightFontColor,
+                                        textAlign: 'center' }]}>
                                     {timeFormatDisplayName[1]}
                                 </Text>
                             </TouchableOpacity>
@@ -375,7 +438,10 @@ class SettingScreen extends React.Component {
                                     UISetting.timeFormat = 2;
                                     saveUISetting();
                                 }}>
-                                <Text style={[styles.settingItemValueText, { color: UISetting.timeFormat == 2 ? UISetting.colors.linkColor : UISetting.colors.lightFontColor }]}>
+                                <Text style={[
+                                    styles.settingItemValueText, {
+                                        color: UISetting.timeFormat == 2 ? UISetting.colors.linkColor : UISetting.colors.lightFontColor,
+                                        textAlign: 'center' }]}>
                                     {timeFormatDisplayName[2]}
                                 </Text>
                             </TouchableOpacity>
@@ -388,7 +454,9 @@ class SettingScreen extends React.Component {
                                     UISetting.timeFormat = 3;
                                     saveUISetting();
                                 }}>
-                                <Text style={[styles.settingItemValueText, { color: UISetting.timeFormat == 3 ? UISetting.colors.linkColor : UISetting.colors.lightFontColor }]}>
+                                <Text style={[styles.settingItemValueText, {
+                                    color: UISetting.timeFormat == 3 ? UISetting.colors.linkColor : UISetting.colors.lightFontColor,
+                                    textAlign: 'center' }]}>
                                     {timeFormatDisplayName[3]}
                                 </Text>
                             </TouchableOpacity>
@@ -403,7 +471,7 @@ class SettingScreen extends React.Component {
                                 </Text>
                             </View>
                             <View>
-                                <Switch 
+                                <Switch
                                     value={UISetting.showFastScrollButton}
                                     onValueChange={(newValue)=>{
                                         UISetting.showFastScrollButton = newValue;
@@ -421,8 +489,9 @@ class SettingScreen extends React.Component {
                                     嵌套引用层数
                                 </Text>
                             </View>
-                            <View>
+                            <View style={styles.settingItemValueView}>
                                 <Text style={[styles.settingItemValueText, { color: UISetting.colors.lightFontColor }]}>{this.state.nestedQuoteCountString}</Text>
+                                <Icon name={'arrow-right'} size={12} style={{marginLeft: 4}} color={UISetting.colors.lightFontColor} />
                             </View>
                         </TouchableOpacity>
                         <View style={this.state.showNestedQuoteCount ? styles.fontSizeView : styles.displayNone}>
@@ -450,11 +519,11 @@ class SettingScreen extends React.Component {
                     <View style={[styles.settingGroup, { backgroundColor: UISetting.colors.threadBackgroundColor }]}>
                         <TouchableOpacity style={styles.settingItem} onPress={() => this.props.navigation.push('WebView', { URL: 'https://github.com/Mfweb/nimingban' })}>
                             <View>
-                                <Text style={[styles.settingItemText, { color: UISetting.colors.threadFontColor }]}>
+                                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.settingItemText, { color: UISetting.colors.threadFontColor }]}>
                                     项目地址
                                 </Text>
                             </View>
-                            <View>
+                            <View style={styles.settingItemValueView}>
                                 <Text style={[styles.settingItemValueText, { color: UISetting.colors.linkColor, fontSize: 16 }]}>https://github.com/Mfweb/nimingban</Text>
                             </View>
                         </TouchableOpacity>
@@ -466,8 +535,8 @@ class SettingScreen extends React.Component {
                                     当前Host
                                 </Text>
                             </View>
-                            <View>
-                                <Text style={[styles.settingItemValueText, { color: UISetting.colors.lightFontColor }]}>
+                            <View style={styles.settingItemValueView}>
+                                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.settingItemValueText, { color: UISetting.colors.lightFontColor }]}>
                                     {
                                         configNetwork.baseUrl[configDynamic.islandMode].useRedirect
                                         ?
@@ -487,8 +556,9 @@ class SettingScreen extends React.Component {
                                     当前图片CDN
                                 </Text>
                             </View>
-                            <View>
-                                <Text style={[styles.settingItemValueText, { color: UISetting.colors.lightFontColor }]}>{configDynamic.imageCDNURL[configDynamic.islandMode]}</Text>
+                            <View style={styles.settingItemValueView}>
+                                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.settingItemValueText, { color: UISetting.colors.lightFontColor }]}>{configDynamic.imageCDNURL[configDynamic.islandMode]}</Text>
+                                <Icon name={'arrow-right'} size={12} style={{marginLeft: 4}} color={UISetting.colors.lightFontColor} />
                             </View>
                         </View>
                         <View style={[styles.itemSplitLine, { backgroundColor: UISetting.colors.defaultBackgroundColor }]}></View>
@@ -503,8 +573,8 @@ class SettingScreen extends React.Component {
                                     版本号
                                 </Text>
                             </View>
-                            <View>
-                                <Text style={[styles.settingItemValueText, { color: UISetting.colors.lightFontColor }]}>1.00 beta(build 14-({packageJson.version}))</Text>
+                            <View style={styles.settingItemValueView}>
+                                <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.settingItemValueText, { color: UISetting.colors.lightFontColor }]}>1.00 beta(build 14-({packageJson.version}))</Text>
                             </View>
                         </TouchableOpacity>
                     </View>

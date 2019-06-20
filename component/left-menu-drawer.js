@@ -1,7 +1,7 @@
 import React from 'react'
 import { Text, View, Image, StyleSheet, SafeAreaView, SectionList, Dimensions, TouchableOpacity, Animated, Linking } from 'react-native'
 import { NavigationActions } from 'react-navigation'
-import { getForumList, getForumNameByID } from '../modules/apis'
+import { getForumList, getForumNameByID } from '../modules/api/ano/forum'
 import { getHTMLDom } from '../modules/html-decoder'
 import Icon from 'react-native-vector-icons/SimpleLineIcons'
 import { Header } from 'react-navigation';
@@ -294,6 +294,13 @@ class LeftDrawerNavigator extends React.Component {
             })
         ], 0);
     }
+    _gotoFeed = () => {
+        this.props.navigation._childrenNavigation.Home.reset([
+            NavigationActions.navigate({
+                routeName: 'FeedScreen',
+            })
+        ], 0);
+    }
     /**
      * 板块分组
      */
@@ -326,7 +333,7 @@ class LeftDrawerNavigator extends React.Component {
         return (
             <TouchableOpacity onPress={() => this._onPressItem(item)}>
                 <View style={styles.itemView}>
-                    <Text style={styles.itemText}>
+                    <Text style={[styles.itemText, {color: UISetting.colors.threadFontColor}]}>
                         {item.displayName}
                     </Text>
                 </View>
@@ -452,7 +459,7 @@ class LeftDrawerNavigator extends React.Component {
                         </View>
 
                         <View style={styles.bottomToolsItem}>
-                            <TouchableOpacity>
+                            <TouchableOpacity onPress={this._gotoFeed}>
                                 <Icon name={'star'} size={32} color={UISetting.colors.fontColor} />
                             </TouchableOpacity>
                         </View>

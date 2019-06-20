@@ -1,13 +1,15 @@
 import React from 'react'
-import { Text, View, FlatList, Animated, Dimensions, TouchableOpacity, StyleSheet } from 'react-native'
+import { Text, View, FlatList, Animated, Dimensions, TouchableOpacity, StyleSheet, Image } from 'react-native'
 import Icon from 'react-native-vector-icons/SimpleLineIcons'
 import { TopModal } from '../component/top-modal'
 import { history } from '../modules/history'
-import { getImage } from '../modules/apis'
+import { getImage } from '../modules/api/image'
 import { MainListItem } from '../component/list-main-item'
 import { Toast } from '../component/toast'
 import { ListProcessView } from '../component/list-process-view'
 import { UISetting } from '../modules/config'
+import { ActionSheet } from '../component/action-sheet'
+import { Header } from 'react-navigation'
 
 const styles = StyleSheet.create({
     headerView: {
@@ -139,7 +141,7 @@ class HistoryManager extends React.Component {
             ),
             headerRight: (
                 <TouchableOpacity style={{ marginRight: 8, marginTop: 2 }} 
-                    onPress={async ()=>navigation.state.params.showRightMenu()} underlayColor={UISetting.colors.lightColor} activeOpacity={0.5} >
+                    onPress={async ()=>navigation.state.params.menuFunctions()} underlayColor={UISetting.colors.lightColor} activeOpacity={0.5} >
                     <Icon name={'options'} size={24} color={UISetting.colors.fontColor} />
                 </TouchableOpacity>
             )
@@ -151,24 +153,81 @@ class HistoryManager extends React.Component {
         this.isUnmount = false;
         this.props.navigation.setParams({
             changeMode: this._changeMode,
+            menuFunctions: this._menuFunctions
         });
         this._pullDownRefresh();
     }
     componentWillUnmount() {
         this.isUnmount = true;
     }
-    _changeMode = (mode) => {
+    _changeMode = (newMode) => {
         this.props.navigation.setParams({
-            mode: mode
+            mode: newMode
         });
-        if(mode !== this.state.mode) {
+        if(newMode !== this.state.mode) {
             this.setState({
-                mode: mode
+                mode: newMode,
+                page: 1,
+                historyList: []
             }, this._pullDownRefresh);
         }
     }
+    /**
+     * 右上角菜单
+     */
+    _menuFunctions = () =>{
+        this.ActionSheet.showActionSheet(Dimensions.get('window').width, Header.HEIGHT,
+        '清空记录',
+        [
+            '清空浏览历史',
+            '清空回复历史',
+            '清空图片历史'
+        ],
+        (index) => {
+            this.ActionSheet.closeActionSheet(() => {
+                switch(index) {
+                    case 0:
+                        history.clearHistory('browse').then(()=>{
+                            this._pullDownRefresh();
+                            this.toast.show('清空完成');
+                        });
+                        break;
+                    case 1:
+                        history.clearHistory('reply').then(()=>{
+                            this._pullDownRefresh();
+                            this.toast.show('清空完成');
+                        });
+                        break;
+                    case 2:
+                        history.clearHistory('image').then(()=>{
+                            this._pullDownRefresh();
+                            this.toast.show('清空完成');
+                        });
+                        break;
+                }
+            });
+        });
+    }
     loadingImages = Array();
-    _renderItem = ({ item, index }) => {
+    _renderItem = (data) => {
+        let { item, index } = data;
+        if(this.state.mode === 2) {
+            return (
+                <TouchableOpacity
+                    onPress={()=>{
+                        this.props.navigation.push('ImageViewer', {
+                            imageUrl: `file://${item.url}`
+                        });
+                    }}
+                    style={{width: '33%', height: 150, margin: '.1%'}}>
+                    <Image
+                        style={{width: '100%', height: 150}}
+                        resizeMode='cover'
+                        source={{uri: `file://${item.url}`}}
+                    />
+                </TouchableOpacity>
+            );
+        }
         if( (item.img != '') && (!item.localImage) && (this.loadingImages.indexOf(index) < 0) ) {
             this.loadingImages.push(index);
             let imgName = item.img + item.ext;
@@ -176,7 +235,7 @@ class HistoryManager extends React.Component {
                 if(this.isUnmount)return;
                 let imgUrl = require('../imgs/img-error.png');
                 if(res.status == 'ok') {
-                    imgUrl = {uri: 'file://' + res.path};
+                    imgUrl = {uri: `file://${res.path}`};
                 }
                 let tempList = this.state.historyList.slice();
                 tempList[index].localImage = imgUrl;
@@ -259,13 +318,16 @@ class HistoryManager extends React.Component {
             <View style={{flex: 1}}>
                 <TopModal ref={(ref)=>{this.TopModal=ref;}} />
                 <Toast ref={(ref) => {this.toast = ref}}/>
+                <ActionSheet ref={(ref)=>{this.ActionSheet=ref;}} />
                 <FlatList
+                    numColumns={this.state.mode === 2 ? 3 : 1}
                     data={this.state.historyList}
                     extraData={this.state}
                     style={[styles.historyList, {backgroundColor: UISetting.colors.defaultBackgroundColor}]}
                     onRefresh={this._pullDownRefresh}
                     refreshing={this.state.headerLoading}
-                    keyExtractor={(item, index) => {return item.id.toString() + '-' + index.toString()}}
+                    keyExtractor={(item, index) => { return `${item.id}-${index}` }}
+                    key={this.state.mode === 2 ? 3 : 1}
                     renderItem={this._renderItem}
                     ListFooterComponent={this._footerComponent}
                     onEndReachedThreshold={0.1}
